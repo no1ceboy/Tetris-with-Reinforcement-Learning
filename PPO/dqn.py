@@ -5,8 +5,8 @@ class ActorCritic():
     def build_actor(self):
         model = tf.keras.Sequential(
             [layers.Input((4,)),
-            layers.Dense(128, activation='tanh'),
-            layers.Dense(128, activation='tanh'),
+            layers.Dense(64, activation='tanh'),
+            layers.Dense(64, activation='tanh'),
             layers.Dense(1,  activation=None)],
             name = "Actor"
         )
@@ -16,8 +16,8 @@ class ActorCritic():
     def build_critic(self):
         model = tf.keras.Sequential(
             [layers.Input((4,)),
-            layers.Dense(128, activation='tanh'),
-            layers.Dense(128, activation='tanh'),
+            layers.Dense(64, activation='tanh'),
+            layers.Dense(64, activation='tanh'),
             layers.Dense(1,  activation=None)],
             name = "Critic"
         )
