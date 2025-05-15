@@ -31,9 +31,8 @@ while update < TOTAL_UPDATES:
     # Each episode
     for _ in range(ROLL_STEPS):
         # Sample next state
-        obs = env._get_board_props()
         cand_dict = env.get_next_states()
-        a = cand_dict.keys()
+        a = list(cand_dict.keys())
         feats = np.vstack(list(cand_dict.values()))  
         logits = actor(feats).numpy()[:,0]
         dist = tf.nn.softmax(logits).numpy()
@@ -62,31 +61,38 @@ while update < TOTAL_UPDATES:
                 cum += len(c)
                 splits.append(cum)
             flat = tf.convert_to_tensor(np.vstack(flat))
-            logits = actor(flat)[:,0]
-            split_logits = tf.split(logits, splits[:-1])
-            logp_n = tf.stack([tf.nn.log_softmax(l)[i] for l,i in zip(split_logits,a_idx)])
+            sizes = [splits[0]]
+            for i in range(len(splits)-1):
+                sizes.append(splits[i+1] - splits[i])
 
-            # Compute clip and entropy
-            ratio = tf.exp(logp_n - logp)
-            minrat = tf.clip_by_value(ratio, 1 - CLIP_EPS, 1 + CLIP_EPS)
-            pi_loss= -tf.reduce_mean(tf.minimum(ratio*adv, minrat*adv))
-            entropy= tf.reduce_mean(
-                tf.concat([ -tf.nn.softmax(l)*tf.nn.log_softmax(l) for l in split_logits ],0))
 
             with tf.GradientTape() as tape_pi, tf.GradientTape() as tape_v:
-                tape_pi.watch(actor.trainable_variables)
-                tape_v.watch(critic.trainable_variables)
-                # Compute losses
-                v_pred = critic(s).tf.squeeze()
+                # Compute log prob of actor
+                logits = actor(flat)[:,0]
+                split_logits = tf.split(logits, sizes)
+
+                logp_n = tf.stack([tf.nn.log_softmax(l)[i] for l,i in zip(split_logits,a_idx)])
+
+                # Compute ratio, entropy
+                ratio = tf.exp(logp_n - logp)
+                minrat = tf.clip_by_value(ratio, 1 - CLIP_EPS, 1 + CLIP_EPS)
+                pi_loss= -tf.reduce_mean(tf.minimum(ratio*adv, minrat*adv))
+                entropy= tf.reduce_mean(
+                    tf.concat([-tf.nn.softmax(l)*tf.nn.log_softmax(l) for l in split_logits], 0))
+                
+                # Compute value loss
+                v_pred = critic(s)
                 v_loss = tf.reduce_mean((r - v_pred)**2)
-                loss   = pi_loss - ENT_COEF*entropy + VF_COEF*v_loss
+                loss = pi_loss - ENT_COEF*entropy + VF_COEF*v_loss
 
             grads_pi = tape_pi.gradient(loss, actor.trainable_variables)
             grads_v = tape_v.gradient(v_loss, critic.trainable_variables)
             opt_pi.apply_gradients(zip(grads_pi, actor.trainable_variables))
             opt_v.apply_gradients(zip(grads_v, critic.trainable_variables))
     
-    buffer.clear(); update += 1
+    buffer.clear()
+    update += 1
+    
     if update % 10 == 0:
         print(f'update {update}: avg reward {np.mean(buffer.r):.1f}')
             

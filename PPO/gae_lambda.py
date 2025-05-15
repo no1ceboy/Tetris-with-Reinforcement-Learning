@@ -1,7 +1,7 @@
 # A buffer that implement GAE lambda bootstrapping
 import numpy as np
 
-np.setseed(32)
+np.random.seed(32)
 
 class GAE():
     def __init__(self, size = 2048, GAE_LAMBDA = 0.95, GAMMA = 0.99):

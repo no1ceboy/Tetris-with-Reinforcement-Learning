@@ -81,7 +81,7 @@ class Tetris:
         self.next_piece = self.bag.pop()
         self._new_round()
         self.score = 0
-        return self._get_board_props(self.board)
+        return np.asarray(self._get_board_props(self.board), np.float32)
 
 
     def _get_rotated_piece(self):
@@ -262,8 +262,7 @@ class Tetris:
                 # Valid move
                 if pos[1] >= 0:
                     board = self._add_piece_to_board(piece, pos)
-                    print(board)
-                    states[(x, rotation)] = self._get_board_props(board)
+                    states[(x, rotation)] = np.asarray(self._get_board_props(board), np.float32)
 
         return states
 
