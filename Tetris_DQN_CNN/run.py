@@ -181,12 +181,12 @@ def train_dqn_agent() -> None:
                 # This print statement indicates a new best model is being saved
                 print(f"New best average score: {avg_score_val:.2f} (was {best_avg_score:.2f}). Saving model...")
                 best_avg_score = avg_score_val
-                agent.save_model("best_tetris_model_core_log.keras") # Model filename
+                agent.save_model("best_tetris_cnn.keras") # Model filename
 
     # --- End of Training ---
     # This print statement indicates training completion
     print("Training finished.")
-    agent.save_model("final_tetris_model_core_log.keras") # Save the final model
+    agent.save_model("final_tetris_cnn.keras") # Save the final model
     if logger: # Close the logger if it was initialized
         logger.close()
     if hasattr(env, 'cv2') and env.cv2: # Clean up OpenCV windows if used
