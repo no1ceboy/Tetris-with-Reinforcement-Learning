@@ -48,5 +48,4 @@ class GAE():
     # Clear buffer
     def clear(self):
         self.ptr=0; self.cands.clear()
-    
         

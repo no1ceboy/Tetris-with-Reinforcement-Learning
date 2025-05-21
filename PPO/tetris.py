@@ -297,7 +297,7 @@ class Tetris:
         if self.game_over:
             score -= 2
 
-        return score, self.game_over
+        return score, self.game_over, np.asarray(self._get_board_props(self.board), np.float32)
 
 
     def render(self):
@@ -311,6 +311,3 @@ class Tetris:
         cv2.putText(img, str(self.score), (22, 22), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 1)
         cv2.imshow('image', np.array(img))
         cv2.waitKey(1)
-
-game = Tetris()
-game.get_next_states()
