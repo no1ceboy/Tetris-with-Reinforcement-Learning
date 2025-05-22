@@ -4,6 +4,7 @@ from gae_lambda import GAE
 
 import numpy as np
 import tensorflow as tf    
+import time
 
 # --------PARAMETER-----------
 GAMMA = 0.99
@@ -24,7 +25,7 @@ env = Tetris()
 buffer = GAE(size=ROLL_STEPS)
 obs = env.reset()
 update = 0
-train_writer = tf.summary.create_file_writer("/kaggle/workingogs/train")
+train_writer = tf.summary.create_file_writer("/kaggle/workinglogs/train")
 eval_writer = tf.summary.create_file_writer("/kaggle/workinglogs/eval")
 
 # ---------------------------
@@ -48,6 +49,9 @@ def evaluate_policy(env, actor, n_games=50):
 while update < TOTAL_UPDATES:
     # Each episode
     for _ in range(ROLL_STEPS):
+        env.render() # Render current state
+        time.sleep(0.05)
+
         # Sample next state
         cand_dict = env.get_next_states()
         a = list(cand_dict.keys())
@@ -62,8 +66,11 @@ while update < TOTAL_UPDATES:
         r, done, next_obs = env.play(a[idx][0], a[idx][1])
 
         # Store
-        buffer.store(obs, idx, logp, r, v_s, done, feats.astype(np.float32))
+        buffer.store(obs, idx, r, v_s, logp, done, feats.astype(np.float32))
         if done:
+            print("Game Over!")
+            env.render() # Render final state
+            time.sleep(1)
             obs = env.reset()
         else:
             obs = next_obs
