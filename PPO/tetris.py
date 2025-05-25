@@ -300,7 +300,7 @@ class Tetris:
         if self.game_over:
             score -= 2
 
-        return score, self.game_over, np.asarray(self._get_board_props(self.board), np.float32)
+        return score, self.game_over, lines_cleared, np.asarray(self._get_board_props(self.board), np.float32)
 
 
     def render(self):
