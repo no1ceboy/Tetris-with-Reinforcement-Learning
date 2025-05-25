@@ -2,11 +2,13 @@ from tetris import Tetris
 from dqn import ActorCritic
 from gae_lambda import GAE
 
+import os
 import numpy as np
 import tensorflow as tf    
 import time
+import matplotlib.pyplot as plt
 
-# --------PARAMETER-----------
+# -------- Parameter -----------
 GAMMA = 0.99
 LAMBDA_GAE = 0.95
 CLIP_EPS = 0.2
@@ -17,6 +19,16 @@ EPOCHS = 10
 MINI_BATCH = 64
 TOTAL_UPDATES = 5000
 
+# ------------- Metric lists -------------
+train_ret_list = []
+train_entropy = []
+train_vloss = []
+
+eval_score_list = []
+eval_lines_list = []
+eval_pieces_list = []
+eval_line_types = {1: [], 2: [], 3: [], 4: []} 
+
 #----------------------------
 dqn = ActorCritic()
 actor, opt_pi = dqn.build_actor()
@@ -25,25 +37,33 @@ env = Tetris()
 buffer = GAE(size=ROLL_STEPS)
 obs = env.reset()
 update = 0
-train_writer = tf.summary.create_file_writer("/kaggle/workinglogs/train")
-eval_writer = tf.summary.create_file_writer("/kaggle/workinglogs/eval")
+train_writer = tf.summary.create_file_writer("train")
+eval_writer = tf.summary.create_file_writer("eval")
 
 # ---------------------------
-def evaluate_policy(env, actor, n_games=50):
+
+# Evaluate after 10 update, track mean score, lines cleared, pieces placed and number of 1, 2, 3, 4 line cleared consecutively
+def evaluate_policy(env, actor, n_games=20):
     scores, lines, pieces = [], [], []
+    line_type_counts = {1: 0, 2: 0, 3: 0, 4: 0}
+
     for _ in range(n_games):
-        obs = env.reset(); done=False; total=0; piece_cnt=0
+        obs = env.reset(); done=False; total=0; piece_cnt=0, line=0
+
         while not done:
             cand = env.get_next_states()
             feats = tf.convert_to_tensor(np.vstack(list(cand.values())), tf.float32)
             logits = actor(feats)[:,0]
             (x,rot) = list(cand.keys())[int(tf.argmax(logits))]
-            reward, done, obs = env.play(x, rot)
-            total += reward; piece_cnt += 1
+            reward, done, line_cleared, obs = env.play(x, rot)
+            total += reward; piece_cnt += 1; line += line_cleared
+            if 1 <= line_cleared <= 4:
+                line_type_counts[line_cleared] += 1
+
         scores.append(env.get_game_score())   
-        lines.append(obs[0])                       
+        lines.append(line_cleared)                       
         pieces.append(piece_cnt)
-    return np.mean(scores), np.mean(lines), np.mean(pieces)
+    return np.mean(scores), np.mean(lines), np.mean(pieces), line_type_counts
 
 # -----------Rollout phase-----------
 while update < TOTAL_UPDATES:
@@ -63,7 +83,7 @@ while update < TOTAL_UPDATES:
         idx = np.random.choice(len(a), p=dist)
         logp = np.log(dist[idx] + 1e-8)
         v_s = critic(obs[None]).numpy()[0, 0]
-        r, done, next_obs = env.play(a[idx][0], a[idx][1])
+        r, done, line_cleared, next_obs = env.play(a[idx][0], a[idx][1])
 
         # Store
         buffer.store(obs, idx, r, v_s, logp, done, feats.astype(np.float32))
@@ -74,20 +94,18 @@ while update < TOTAL_UPDATES:
             obs = env.reset()
         else:
             obs = next_obs
-
-        # Sample obs from buffer
-        # if _ % 50 == 0:
-        #     print("step", _, "obs", obs)
         
     # Calculate the last value of episode
     last_v = 0.0 if done else critic(obs[None]).numpy()[0,0]
     buffer.finish(last_v)
+    train_ret_list.append(np.mean(buffer.r[:buffer.ptr]))
     print(np.unique(buffer.s[:10], axis=0).shape)
     print("buffer rewards sample:", buffer.r[:20])
     print("fraction done=True:", buffer.done.mean())
 
 # -----------Learning phase--------------
     for _ in range(EPOCHS):
+        entropies, v_losses = [], []
         for (s, a_idx, logp, adv, r, cand_list) in buffer.get(MINI_BATCH):
             adv = tf.convert_to_tensor(adv)
             r = tf.convert_to_tensor(r)
@@ -96,7 +114,6 @@ while update < TOTAL_UPDATES:
             # Flatten all actions list and keep track of each
             flat, splits = [], []
             cum = 0
-            entropies, v_losses = [], []
             for c in cand_list:
                 flat.append(c)
                 cum += len(c)
@@ -133,17 +150,26 @@ while update < TOTAL_UPDATES:
             entropies.append(entropy)
             v_losses.append(v_loss)
 
+    # Write in train log
     with train_writer.as_default():
         tf.summary.scalar("return", np.mean(buffer.r), step=update)
         tf.summary.scalar("entropy", np.mean(entropies), step=update)
         tf.summary.scalar("value_loss", np.mean(v_losses), step=update)
     
+    train_entropy.append(np.mean(entropies))
+    train_vloss.append(np.mean(v_losses))
+
     update += 1
     
     # Evaluate after 10 update
     if update % 10 == 0:
         env_eval = Tetris()
-        scores, lines, pieces = evaluate_policy(env_eval, actor, n_games=30)
+        scores, lines, pieces, line_types = evaluate_policy(env_eval, actor, n_games=10)
+        eval_score_list.append(scores)
+        eval_lines_list.append(lines)
+        eval_pieces_list.append(pieces)
+        for i in range(1,5):
+            eval_line_types[i].append(line_types.get(i, 0))
         with eval_writer.as_default():
             tf.summary.scalar("score", scores, step=update)
             tf.summary.scalar("lines", lines, step=update)
@@ -152,6 +178,40 @@ while update < TOTAL_UPDATES:
 
     buffer.clear()
         
+# ------------ Plot metric -------------
+def save_simple_plots(train_ret, train_ent, train_vloss, eval_score, eval_lines, eval_pieces, eval_line_types, eval_every=10, out_dir="plots"):
+    os.makedirs(out_dir, exist_ok=True)
+
+    def save_curve(x, y, name, title, ylab):
+        plt.figure(figsize=(6,4))
+        plt.title(title)
+        plt.plot(x, y)
+        plt.xlabel("update"); plt.ylabel(ylab)
+        plt.tight_layout()
+        plt.savefig(os.path.join(out_dir, f"{name}.png"), dpi=150)
+        plt.close()
+
+    x_tr = np.arange(len(train_ret))
+    save_curve(x_tr, train_ret, "train_return", "Train return", "R")
+    save_curve(x_tr, train_ent, "train_entropy", "Policy entropy","entropy")
+    save_curve(x_tr, train_vloss,"train_vloss", "Value loss", "MSE")
+
+    x_ev = np.arange(len(eval_score)) * eval_every
+    save_curve(x_ev, eval_score, "eval_score", "Eval score", "score")
+    save_curve(x_ev, eval_lines, "eval_lines", "Eval lines", "lines")
+    save_curve(x_ev, eval_pieces, "eval_pieces", "Eval pieces", "pieces")
+
+    plt.figure(figsize=(6,4))
+    plt.title("Line-type counts")
+    for k, lab in zip(range(1,5), ["1-line","2-line","3-line","4-line"]):
+        plt.plot(x_ev, eval_line_types[k], label=lab)
+    plt.xlabel("update"); plt.ylabel("count"); plt.legend()
+    plt.tight_layout()
+    plt.savefig(os.path.join(out_dir, "eval_line_types.png"), dpi=150)
+    plt.close()
+
+save_simple_plots(train_ret_list, train_entropy, train_vloss, eval_score_list, eval_lines_list, eval_pieces_list, eval_line_types)
+
 # Save model
-actor.save_model("/kaggle/workingactor.keras")
-critic.save_model("/kaggle/workingcritic.keras")
+actor.save_model("actor.keras")
+critic.save_model("critic.keras")
