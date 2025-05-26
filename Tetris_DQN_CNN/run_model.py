@@ -59,5 +59,5 @@ except KeyboardInterrupt:
 finally:
     print(f"Final Score (from env): {env.get_game_score()}")
     print(f"Total Steps: {total_steps}")
-    if hasattr(env, 'cv2'): # Assuming tetris.py uses cv2
+    if hasattr(env, 'cv2'):
         env.cv2.destroyAllWindows()
