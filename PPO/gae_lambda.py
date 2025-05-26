@@ -6,7 +6,7 @@ np.random.seed(32)
 class GAE():
     def __init__(self, size = 2048, GAE_LAMBDA = 0.95, GAMMA = 0.99):
         # s: state, a: index of chosen action, r: reward, v: critic's state value, logp: log prob of action, d: episode done, cand: all possible actions, ptr: current pointer  
-        self.s = np.zeros((size,4),  np.float32)
+        self.s = np.zeros((size,3),  np.float32)
         self.a_idx = np.zeros(size, np.int32)
         self.logp = np.zeros(size, np.float32)
         self.r = np.zeros(size, np.float32)
@@ -24,7 +24,7 @@ class GAE():
         self.cands.append(cand)
         self.ptr += 1
 
-    # Call when episode or rollout phase it over
+    # Call when rollout phase it over
     def finish(self, last_val):
         adv = np.zeros_like(self.r)
         gae = 0

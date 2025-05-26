@@ -229,7 +229,7 @@ class Tetris:
         holes = self._number_of_holes(board)
         total_bumpiness, max_bumpiness = self._bumpiness(board)
         sum_height, max_height, min_height = self._height(board)
-        return [lines, holes, total_bumpiness, sum_height]
+        return [holes, total_bumpiness, sum_height]
 
 
     def get_next_states(self):
@@ -289,15 +289,18 @@ class Tetris:
         # Update board and calculate score        
         self.board = self._add_piece_to_board(self._get_rotated_piece(), self.current_pos)
         lines_cleared, self.board = self._clear_lines(self.board)
-        score = 1 + (lines_cleared ** 2) * Tetris.BOARD_WIDTH
-        self.score += score
+        holes = self._number_of_holes(self.board)
+        total_bumpiness, _ = self._bumpiness(self.board)
+        sum_height, _, _   = self._height(self.board)
+        score = 1 + (lines_cleared ** 2) * Tetris.BOARD_WIDTH - 0.35 * holes - 0.02 * total_bumpiness - 0.02 * sum_height
+        self.score += 1 + (lines_cleared ** 2) * Tetris.BOARD_WIDTH
 
         # Start new round
         self._new_round()
         if self.game_over:
             score -= 2
 
-        return score, self.game_over, np.asarray(self._get_board_props(self.board), np.float32)
+        return score, self.game_over, lines_cleared, np.asarray(self._get_board_props(self.board), np.float32)
 
 
     def render(self):
