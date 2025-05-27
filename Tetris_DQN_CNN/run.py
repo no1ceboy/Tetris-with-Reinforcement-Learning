@@ -12,7 +12,7 @@ from typing import Optional, List, Tuple, Union, Dict
 EPISODES: int = 10000
 MAX_STEPS_PER_EPISODE: Optional[int] = 1500  # Giới hạn số bước/ep để replay buffer đa dạng hơn
 EPSILON_STOP_EPISODE_RATIO: float = 0.2
-MEMORY_SIZE: int = 20000
+MEMORY_SIZE: int = 10000
 DISCOUNT_FACTOR: float = 0.99
 BATCH_SIZE: int = 64
 EPOCHS_PER_TRAIN_STEP: int = 1
@@ -31,8 +31,8 @@ POOLING_CONFIGS: List[Union[bool, Tuple[int, int]]] = [True, True, True]
 DENSE_LAYER_NEURONS: List[int] = [512, 256]
 DENSE_LAYER_ACTIVATIONS: List[str] = ['relu', 'relu', 'linear']
 
-LEARNING_RATE_DQN: float = 0.0001
-TARGET_NETWORK_UPDATE_FREQUENCY: int = 250
+LEARNING_RATE_DQN: float = 0.00005
+TARGET_NETWORK_UPDATE_FREQUENCY: int = 500
 
 def configure_gpu_memory_growth() -> None:
     gpus = tf.config.experimental.list_physical_devices('GPU')
