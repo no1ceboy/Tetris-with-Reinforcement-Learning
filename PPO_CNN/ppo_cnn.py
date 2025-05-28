@@ -52,7 +52,8 @@ def evaluate_policy(env, actor, n_games=20):
 
         while not done:
             cand = env.get_next_states()
-            feats = tf.convert_to_tensor(np.vstack(list(cand.values())), tf.float32)
+            feats = np.stack(list(cand.values()))  
+            feats = feats[..., None].astype(np.float32) 
             logits = actor(feats)[:,0]
             (x,rot) = list(cand.keys())[int(tf.argmax(logits))]
             reward, done, line_cleared, obs = env.play(x, rot)
