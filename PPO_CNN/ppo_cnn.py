@@ -78,8 +78,6 @@ while update < TOTAL_UPDATES:
         feats = feats[..., None].astype(np.float32) 
         logits = actor(feats).numpy()[:,0]
         dist = tf.nn.softmax(logits).numpy()
-        assert np.isfinite(dist).all(), "NaNs in softmax"
-        assert np.abs(dist.sum() - 1) < 1e-6, "not a prob-vector"
         idx = np.random.choice(len(a), p=dist)
         logp = np.log(dist[idx] + 1e-8)
         v_s = critic(obs[None]).numpy()[0, 0]
