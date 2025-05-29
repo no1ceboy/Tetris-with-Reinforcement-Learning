@@ -1,7 +1,6 @@
 # Tetris with Reinforcement Learning
 
 This repository contains an implementation of a Reinforcement Learning (RL) agent trained to play **Tetris**.  
-The project leverages **Proximal Policy Optimization (PPO)** with custom state representations and reward shaping to teach an agent effective strategies for clearing lines and maximizing score.
 
 ---
 
