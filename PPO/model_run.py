@@ -1,11 +1,11 @@
 import time, numpy as np, tensorflow as tf
-from tetris import Tetris   # or from tetris import Tetris
+from tetris import Tetris
 
 actor = tf.keras.models.load_model("PPO/model/actor_modelCNN.keras", compile=False)
-env   = Tetris()
+env = Tetris()
 
-obs   = env.reset() 
-done  = False
+obs = env.reset() 
+done = False
 scores, lines, pieces = [], [], []
 line_type_counts = {1: 0, 2: 0, 3: 0, 4: 0}
 for i in range(50):
